@@ -1,0 +1,16 @@
+{
+  "name": "graphql-zeus-bug",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate": "yarn zeus schema.graphql ./generated"
+  },
+  "author": "Viliam Kopecky",
+  "license": "ISC",
+  "dependencies": {
+    "graphql-zeus": "^2.8.6",
+    "typescript": "^4.1.3"
+  }
+}

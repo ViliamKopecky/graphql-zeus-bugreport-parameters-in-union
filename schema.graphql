@@ -1,0 +1,24 @@
+interface Node {
+	id: ID!
+}
+
+type Cat implements Node {
+	id: ID!
+	isCat: Boolean!
+	relatedCats(first: Int!): [Cat!]
+}
+
+type Dog implements Node {
+	id: ID!
+	isDog: Boolean!
+}
+
+type Query {
+	getCatOrDog(id: ID!): Node
+	getCat(id: ID!): Cat
+	getDog(id: ID!): Dog
+}
+
+schema {
+	query: Query
+}
