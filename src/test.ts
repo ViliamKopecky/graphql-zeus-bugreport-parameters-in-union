@@ -33,6 +33,7 @@ export async function wrong() {
 			{ id: "test" },
 			{
 				id: true,
+				__typename: true,
 				"...on Cat": {
 					isCat: true,
 					relatedCats: [{ first: 10 }, { id: true, isCat: true }],
