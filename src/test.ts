@@ -1,4 +1,4 @@
-import { Thunder } from "../generated/graphql-zeus";
+import { Thunder } from "../generated/zeus";
 
 const client = Thunder(fetch);
 
@@ -8,21 +8,17 @@ export async function good() {
 			{ id: "test" },
 			{
 				id: true,
-				isCat: true,
-				relatedCats: [{ first: 10 }, { id: true, isCat: true }],
+				__typename: true,
 			},
 		],
 	});
 
-	type ReturnedCatType = NonNullable<typeof result["getCat"]>;
-
 	// Correct
-
-	type RelatetdCats = ReturnedCatType["relatedCats"];
-	// (property) relatedCats: {
-	//     id: string;
-	//     isCat: boolean;
-	// }[] | undefined
+	type ReturnedCatType = NonNullable<typeof result["getCat"]>;
+	// {
+	// 	id: string;
+	// 	__typename: "Cat";
+	// }
 
 	return result;
 }
@@ -34,26 +30,15 @@ export async function wrong() {
 			{
 				id: true,
 				__typename: true,
-				"...on Cat": {
-					isCat: true,
-					relatedCats: [{ first: 10 }, { id: true, isCat: true }],
-				},
 			},
 		],
 	});
 
+	// Might be wrong (missing `__typename`)
 	type ReturnedCatType = NonNullable<typeof result["getCatOrDog"]>;
-
-	// Wrong
-
-	type RelatetdCats = ReturnedCatType["relatedCats"];
-
-	// (property) relatedCats: [{
-	//     first: number;
-	// }, {
-	//     id: unknown;
-	//     isCat: unknown;
-	// }][] | undefined
+	// {
+	// 	id: string;
+	// }
 
 	return result;
 }

@@ -1,66 +1,6 @@
-/* tslint:disable */
 /* eslint-disable */
 
-export const AllTypesProps = {
-	Cat:{
-		relatedCats:{
-			first:{
-				type:"Int",
-				array:false,
-				arrayRequired:false,
-				required:true
-			}
-		}
-	},
-	Query:{
-		getCatOrDog:{
-			id:{
-				type:"ID",
-				array:false,
-				arrayRequired:false,
-				required:true
-			}
-		},
-		getCat:{
-			id:{
-				type:"ID",
-				array:false,
-				arrayRequired:false,
-				required:true
-			}
-		},
-		getDog:{
-			id:{
-				type:"ID",
-				array:false,
-				arrayRequired:false,
-				required:true
-			}
-		}
-	}
-}
-
-export const ReturnTypes = {
-	Node:{
-		"...on Cat": "Cat",
-		"...on Dog": "Dog",
-		id:"ID"
-	},
-	Cat:{
-		id:"ID",
-		isCat:"Boolean",
-		relatedCats:"Cat"
-	},
-	Dog:{
-		id:"ID",
-		isDog:"Boolean"
-	},
-	Query:{
-		getCatOrDog:"Node",
-		getCat:"Cat",
-		getDog:"Dog"
-	}
-}
+import { AllTypesProps, ReturnTypes } from './const';
 
 export class GraphQLError extends Error {
     constructor(response) {
@@ -276,13 +216,34 @@ const inspectVariables = (query) => {
 };
 
 
-const queryConstruct = (t, tName) => (o) => `${t.toLowerCase()}${inspectVariables(buildQuery(tName, o))}`;  
+export const queryConstruct = (t, tName) => (o) => `${t.toLowerCase()}${inspectVariables(buildQuery(tName, o))}`;  
 
 
 const fullChainConstruct = (fn) => (t,tName) => (o, variables) => fn(queryConstruct(t, tName)(o), variables).then(r => { 
   seekForAliases(r)
   return r
 });
+
+export const fullChainConstructor = (
+  fn,
+  operation,
+  key,
+) =>
+  ((o, variables) => fullChainConstruct(fn)(operation, key)(o, variables))
+
+
+const fullSubscriptionConstruct = (fn) => (
+  t,
+  tName,
+) => (o, variables) =>
+  fn(queryConstruct(t, tName)(o), variables);
+  
+export const fullSubscriptionConstructor = (
+  fn,
+  operation,
+  key,
+) =>
+  ((o, variables) => fullSubscriptionConstruct(fn)(operation, key)(o, variables))
 
 
 const seekForAliases = (o) => {
@@ -319,6 +280,13 @@ export const $ = (t) => `ZEUS_VAR$${t.join('')}`;
 
 export const ZeusSelect = () => (t) => t
 
+export const resolverFor = (
+  type,
+  field,
+  fn
+) => fn;
+
+
 const handleFetchResponse = response => {
   if (!response.ok) {
     return new Promise((resolve, reject) => {
@@ -331,7 +299,7 @@ const handleFetchResponse = response => {
   return response.json();
 };
 
-const apiFetch = (options) => (query, variables = {}) => {
+export const apiFetch = (options) => (query, variables = {}) => {
     const fetchFunction = fetch;
     let queryString = query;
     let fetchOptions = options[1] || {};
@@ -364,19 +332,53 @@ const apiFetch = (options) => (query, variables = {}) => {
         return response.data;
       });
   };
+
+export const apiSubscription = (options) => (
+    query,
+    variables,
+  ) => {
+    try {
+      const queryString = options[0] + '?query=' + encodeURIComponent(query);
+      const wsString = queryString.replace('http', 'ws');
+      const host = (options.length > 1 && options[1]?.websocket?.[0]) || wsString;
+      const webSocketOptions = options[1]?.websocket || [host];
+      const ws = new WebSocket(...webSocketOptions);
+      return {
+        ws,
+        on: (e) => {
+          ws.onmessage = (event) => {
+            if(event.data){
+              const parsed = JSON.parse(event.data)
+              const data = parsed.data
+              if (data) {
+                seekForAliases(data);
+              }
+              return e(data);
+            }
+          };
+        },
+        off: (e) => {
+          ws.onclose = e;
+        },
+        error: (e) => {
+          ws.onerror = e;
+        },
+        open: (e) => {
+          ws.onopen = e;
+        },
+      };
+    } catch {
+      throw new Error('No websockets implemented');
+    }
+  };
+
   
 export const Thunder = (fn) => ({
-  query: ((o, variables) =>
-      fullChainConstruct(fn)('query', 'Query')(o, variables).then(
-        (response) => response
-      ))
+  query: fullChainConstructor(fn,'query', 'Query')
 });
 
 export const Chain = (...options) => ({
-  query: (o, variables) =>
-    fullChainConstruct(apiFetch(options))('query', 'Query')(o, variables).then(
-      (response) => response
-    )
+  query: fullChainConstructor(apiFetch(options),'query', 'Query')
 });
 export const Zeus = {
   query: (o) => queryConstruct('query', 'Query')(o)
